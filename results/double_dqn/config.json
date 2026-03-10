@@ -1,0 +1,12 @@
+{
+  "lr": 0.001,
+  "gamma": 0.99,
+  "epsilon_start": 1.0,
+  "epsilon_end": 0.05,
+  "epsilon_decay": 0.999,
+  "batch_size": 64,
+  "buffer_capacity": 50000,
+  "target_update_freq": 100,
+  "hidden_dim": 128,
+  "episodes": 3000
+}

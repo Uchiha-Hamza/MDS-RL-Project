@@ -1,0 +1,6 @@
+{
+  "lr": 0.001,
+  "gamma": 0.99,
+  "hidden_dim": 128,
+  "episodes": 5000
+}
