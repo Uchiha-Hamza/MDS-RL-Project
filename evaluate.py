@@ -18,6 +18,7 @@ import matplotlib
 matplotlib.use("Agg")  # Non-interactive backend
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import matplotlib.animation as animation
 import seaborn as sns
 from matplotlib.colors import LinearSegmentedColormap
 
@@ -432,6 +433,78 @@ def plot_generalization_test(results_dir="results", n_episodes=200):
     plt.savefig(path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"  [OK] Saved: {path}")
+    
+# ═══════════════════════════════════════════════════════════════════
+# 7. Video / Animation Generation
+# ═══════════════════════════════════════════════════════════════════
+def generate_agent_videos(results_dir="results"):
+    """Generate animated GIFs showing the agent navigating the grid."""
+    env_config = {**ENV_CONFIG, **REWARD_CONFIG, "viewport_pattern": "linear"}
+
+    for agent_name in AGENT_REGISTRY.keys():
+        checkpoint_path = os.path.join(results_dir, agent_name, "checkpoint.pt")
+        if not os.path.exists(checkpoint_path):
+            continue
+
+        agent_config = AGENT_CONFIGS[agent_name].copy()
+        AgentClass = AGENT_REGISTRY[agent_name]
+        agent = AgentClass(agent_config)
+        state_dict = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+        agent.load_state_dict(state_dict)
+
+        env = AdStealthEnv(config=env_config)
+        state, _ = env.reset()
+        states = [state.copy()]
+        done = False
+
+        while not done:
+            action = agent.select_action(state, training=False)
+            state, _, terminated, truncated, _ = env.step(action)
+            states.append(state.copy())
+            done = terminated or truncated
+            
+        env.close()
+
+        fig, ax = plt.subplots(figsize=(6, 6))
+
+        def update(frame):
+            ax.clear()
+            s = states[frame]
+            
+            ax.set_xlim(-0.5, 9.5)
+            ax.set_ylim(9.5, -0.5) 
+            ax.set_xticks(range(10))
+            ax.set_yticks(range(10))
+            ax.grid(True, alpha=0.3)
+            ax.set_title(f"{DISPLAY_NAMES[agent_name]} | Step {frame} | Timer (τ): {int(s[5])}")
+
+            sector = int(s[4])
+            tau = int(s[5])
+            sectors_map = {0: (0, 0), 1: (5, 0), 2: (0, 5), 3: (5, 5)}
+            sx, sy = sectors_map[sector]
+
+            color = "red" if tau == 0 else "orange"
+            alpha = 0.5 if tau == 0 else 0.2
+            danger_rect = patches.Rectangle((sx - 0.5, sy - 0.5), 5, 5,
+                                            linewidth=2, edgecolor=color,
+                                            facecolor=color, alpha=alpha)
+            ax.add_patch(danger_rect)
+
+            vx, vy = int(s[2]), int(s[3])
+            vp_rect = patches.Rectangle((vx - 1.5, vy - 1.5), 3, 3,
+                                        linewidth=2, edgecolor="green",
+                                        facecolor="green", alpha=0.3)
+            ax.add_patch(vp_rect)
+
+            ax.scatter(s[0], s[1], c="blue", s=250, marker="o", edgecolors="white", linewidths=2, zorder=5)
+
+        ani = animation.FuncAnimation(fig, update, frames=len(states), interval=200)
+
+        path = os.path.join(results_dir, f"video_{agent_name}.gif")
+        ani.save(path, writer='pillow')
+        plt.close()
+        
+        print(f"  [OK] Saved Video: {path}")
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -469,9 +542,13 @@ def generate_all_plots(results_dir="results"):
 
     print("  [6/6] Generalization test...")
     plot_generalization_test(results_dir)
+    
+    print("  [7/7] Generating Videos (GIFs)...")
+    generate_agent_videos(results_dir)
 
     print(f"\n  All plots saved to: {results_dir}/")
     print("=" * 60)
+    
 
 
 if __name__ == "__main__":
