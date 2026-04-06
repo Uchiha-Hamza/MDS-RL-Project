@@ -8,5 +8,5 @@
   "buffer_capacity": 50000,
   "target_update_freq": 100,
   "hidden_dim": 128,
-  "episodes": 3000
+  "episodes": 5000
 }
